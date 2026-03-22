@@ -90,21 +90,13 @@ export const acceptBid = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
-    console.log(' Accepting bid:', bidId, 'by user:', req.user.userId);
-
     const contract = await bidService.acceptBid(req.user.userId, acceptData);
-
-    console.log(' Bid accepted successfully');
 
     res.status(200).json({
       message: 'Bid accepted successfully',
       contract,
     });
   } catch (error) {
-    console.error(' Accept bid error:', error);
-    console.error('Error message:', error instanceof Error ? error.message : 'Unknown');
-    console.error('Stack trace:', error instanceof Error ? error.stack : '');
-    
     if (error instanceof Error) {
       res.status(400).json({ error: error.message });
     } else {
