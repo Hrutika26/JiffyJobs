@@ -20,6 +20,9 @@ export const discoverTasks = async (req: AuthRequest, res: Response): Promise<vo
       maxBudget,
       startDate,
       endDate,
+      searchText,
+      minHours,
+      maxHours,
       page,
       limit,
       sortBy,
@@ -34,6 +37,10 @@ export const discoverTasks = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const rawSearch = typeof searchText === 'string' ? searchText.trim() : '';
+    const parsedMinHours = minHours !== undefined && minHours !== '' ? parseInt(minHours as string, 10) : undefined;
+    const parsedMaxHours = maxHours !== undefined && maxHours !== '' ? parseInt(maxHours as string, 10) : undefined;
+
     // Build filter object
     const filters: DiscoveryFilter = {
       latitude: parseFloat(latitude as string),
@@ -44,8 +51,11 @@ export const discoverTasks = async (req: AuthRequest, res: Response): Promise<vo
       maxBudget: maxBudget ? parseFloat(maxBudget as string) : undefined,
       startDate: startDate ? new Date(startDate as string) : undefined,
       endDate: endDate ? new Date(endDate as string) : undefined,
-      page: page ? parseInt(page as string) : 1,
-      limit: limit ? parseInt(limit as string) : 20,
+      searchText: rawSearch.length > 0 ? rawSearch : undefined,
+      minHours: parsedMinHours !== undefined && !isNaN(parsedMinHours) ? parsedMinHours : undefined,
+      maxHours: parsedMaxHours !== undefined && !isNaN(parsedMaxHours) ? parsedMaxHours : undefined,
+      page: page ? parseInt(page as string, 10) : 1,
+      limit: limit ? parseInt(limit as string, 10) : 20,
       sortBy: (sortBy as any) || 'proximity',
       sortOrder: (sortOrder as any) || 'asc'
     };
