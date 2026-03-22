@@ -21,7 +21,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { bidAPI } from '@/services/api.service';
-import { Bid, BidStatus } from '@/types/task.types';
+import { Bid, BidStatus, TaskStatus } from '@/types/task.types';
 import { useNavigate } from 'react-router-dom';
 
 const MyBids: React.FC = () => {
@@ -41,9 +41,12 @@ const MyBids: React.FC = () => {
       const response = await bidAPI.getMyBids();
       setBids(response.bids);
     } catch (err: unknown) {
-      console.error('Error fetching my bids:', err);
-      const apiError = err as { response?: { data?: { message?: string } } };
-      setError(apiError.response?.data?.message || 'Failed to load bids');
+      const apiError = err as { response?: { data?: { error?: string; message?: string } } };
+      setError(
+        apiError.response?.data?.error ||
+          apiError.response?.data?.message ||
+          'Something went wrong'
+      );
     } finally {
       setLoading(false);
     }
@@ -55,25 +58,34 @@ const MyBids: React.FC = () => {
       // Refresh the bids list
       fetchMyBids();
     } catch (err: unknown) {
-      console.error('Error withdrawing bid:', err);
-      const apiError = err as { response?: { data?: { message?: string } } };
-      setError(apiError.response?.data?.message || 'Failed to withdraw bid');
+      const apiError = err as { response?: { data?: { error?: string; message?: string } } };
+      setError(
+        apiError.response?.data?.error ||
+          apiError.response?.data?.message ||
+          'Something went wrong'
+      );
     }
   };
 
-  const getStatusColor = (status: BidStatus) => {
+  const getStatusColor = (bid: Bid) => {
+    const status = bid.status;
     switch (status) {
       case BidStatus.PENDING:
         return 'warning';
       case BidStatus.ACCEPTED:
         return 'success';
       case BidStatus.REJECTED:
-        return 'error';
+        return 'warning';
       case BidStatus.WITHDRAWN:
         return 'default';
       default:
         return 'default';
     }
+  };
+
+  const getStatusLabel = (status: BidStatus) => {
+    if (status === BidStatus.REJECTED) return 'Not selected';
+    return status;
   };
 
   const getStatusIcon = (status: BidStatus) => {
@@ -180,15 +192,21 @@ const MyBids: React.FC = () => {
                 <Box sx={{ textAlign: 'right', minWidth: 120 }}>
                   <Chip
                     icon={getStatusIcon(bid.status)}
-                    label={bid.status}
-                    color={getStatusColor(bid.status) as 'default' | 'primary' | 'success' | 'warning' | 'error'}
+                    label={getStatusLabel(bid.status)}
+                    color={getStatusColor(bid) as 'default' | 'primary' | 'success' | 'warning' | 'error'}
                     size="small"
                     sx={{ mb: 1 }}
                   />
                   <Typography variant="body2" color="text.secondary">
                     {bid.status === BidStatus.PENDING && 'Waiting for response'}
                     {bid.status === BidStatus.ACCEPTED && 'Bid accepted! 🎉'}
-                    {bid.status === BidStatus.REJECTED && 'Bid rejected'}
+                    {bid.status === BidStatus.REJECTED &&
+                      (bid.task?.status === TaskStatus.ASSIGNED ||
+                      bid.task?.status === TaskStatus.IN_PROGRESS ||
+                      bid.task?.status === TaskStatus.AWAITING_CONFIRMATION ||
+                      bid.task?.status === TaskStatus.COMPLETED
+                        ? 'Task assigned to another bidder'
+                        : 'Not selected for this task')}
                     {bid.status === BidStatus.WITHDRAWN && 'Bid withdrawn'}
                   </Typography>
                 </Box>
