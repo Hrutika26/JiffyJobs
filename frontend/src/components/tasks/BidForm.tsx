@@ -44,7 +44,7 @@ const BidForm: React.FC<BidFormProps> = ({ task, onBidPlaced, onCancel }) => {
 
   const validateForm = (): string | null => {
     if (formData.amount <= 0) {
-      return 'Bid amount must be greater than $0';
+      return 'Amount must be greater than 0';
     }
     if (task.budgetMin && formData.amount < task.budgetMin) {
       return `Bid amount must be at least $${task.budgetMin}`;
@@ -73,7 +73,7 @@ const BidForm: React.FC<BidFormProps> = ({ task, onBidPlaced, onCancel }) => {
 
     try {
       const response = await bidAPI.placeBid(formData);
-      setSuccess('Bid placed successfully!');
+      setSuccess('Bid submitted successfully');
       if (onBidPlaced) {
         onBidPlaced(response.bid);
       }
@@ -84,12 +84,11 @@ const BidForm: React.FC<BidFormProps> = ({ task, onBidPlaced, onCancel }) => {
         note: '',
       });
     } catch (err: unknown) {
-      console.error('Error placing bid:', err);
       const apiError = err as { response?: { data?: { error?: string; message?: string } } };
       setError(
-        apiError.response?.data?.error || 
-        apiError.response?.data?.message || 
-        'Failed to place bid. Please try again.'
+        apiError.response?.data?.error ||
+          apiError.response?.data?.message ||
+          'Something went wrong'
       );
     } finally {
       setLoading(false);
@@ -218,7 +217,7 @@ const BidForm: React.FC<BidFormProps> = ({ task, onBidPlaced, onCancel }) => {
               variant="contained"
               loading={loading}
               startIcon={<Send />}
-              disabled={formData.amount <= 0}
+              disabled={loading || formData.amount <= 0}
             >
               Place Bid
             </Button>
