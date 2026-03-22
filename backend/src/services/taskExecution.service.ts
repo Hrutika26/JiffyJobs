@@ -398,12 +398,14 @@ export async function triggerReviewPrompts(taskId: string) {
           select: {
             userId: true,
             name: true,
+            email: true,
           },
         },
         assignedHelper: {
           select: {
             userId: true,
             name: true,
+            email: true,
           },
         },
       },
@@ -427,30 +429,34 @@ export async function triggerReviewPrompts(taskId: string) {
     }
 
     // Send review prompt to poster (to review helper)
+    const helperLabel = assignedHelper.name || assignedHelper.email || 'your helper';
     await createNotification({
       userId: contract.posterId,
       type: NotificationType.REVIEW_REQUESTED,
-      title: 'Leave a Review',
-      message: `How was your experience with ${assignedHelper.name || 'the helper'}? Leave a review to help others!`,
+      title: `You completed a task with ${helperLabel}. Leave a review.`,
+      message: `Rate ${helperLabel} and share quick feedback — it helps the community.`,
       relatedTaskId: taskId,
       metadata: {
         contractId: contract.contractId,
         revieweeId: contract.helperId,
+        revieweeName: assignedHelper.name || assignedHelper.email || 'Helper',
         taskTitle: task.title,
       },
       sendEmail: true,
     });
 
     // Send review prompt to helper (to review poster)
+    const posterLabel = poster.name || poster.email || 'the poster';
     await createNotification({
       userId: contract.helperId,
       type: NotificationType.REVIEW_REQUESTED,
-      title: 'Leave a Review',
-      message: `How was your experience with ${poster.name || 'the poster'}? Leave a review to help others!`,
+      title: `You completed a task with ${posterLabel}. Leave a review.`,
+      message: `Rate ${posterLabel} and share quick feedback — it helps the community.`,
       relatedTaskId: taskId,
       metadata: {
         contractId: contract.contractId,
         revieweeId: contract.posterId,
+        revieweeName: poster.name || poster.email || 'Poster',
         taskTitle: task.title,
       },
       sendEmail: true,
