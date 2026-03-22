@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -46,6 +46,8 @@ const BidList: React.FC<BidListProps> = ({
   });
   const [paymentContract, setPaymentContract] = useState<Contract | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  /** Only full-page loading on first load — refetch keeps list visible (e.g. success message from parent). */
+  const isFirstFetch = useRef(true);
 
   const sortOptions = [
     { value: { field: 'amount' as const, order: 'asc' as const }, label: 'Amount (Low to High)' },
@@ -58,16 +60,24 @@ const BidList: React.FC<BidListProps> = ({
 
   const fetchBids = async () => {
     try {
-      setLoading(true);
+      if (isFirstFetch.current) {
+        setLoading(true);
+      }
       setError(null);
       const response = await bidAPI.getTaskBids(taskId, undefined, sortBy);
       setBids(response.bids);
     } catch (err: unknown) {
-      console.error('Error fetching bids:', err);
-      const apiError = err as { response?: { data?: { message?: string } } };
-      setError(apiError.response?.data?.message || 'Failed to load bids');
+      const apiError = err as { response?: { data?: { error?: string; message?: string } } };
+      setError(
+        apiError.response?.data?.error ||
+          apiError.response?.data?.message ||
+          'Failed to load bids'
+      );
     } finally {
-      setLoading(false);
+      if (isFirstFetch.current) {
+        setLoading(false);
+        isFirstFetch.current = false;
+      }
     }
   };
 
@@ -95,12 +105,15 @@ const BidList: React.FC<BidListProps> = ({
       if (onBidAccepted) {
         onBidAccepted(bid);
       }
-      // Refresh the bids list
+      // Refresh the bids list (does not toggle full-page loading)
       fetchBids();
     } catch (err: unknown) {
-      console.error('Error accepting bid:', err);
-      const apiError = err as { response?: { data?: { message?: string } } };
-      setError(apiError.response?.data?.message || 'Failed to accept bid');
+      const apiError = err as { response?: { data?: { error?: string; message?: string } } };
+      setError(
+        apiError.response?.data?.error ||
+          apiError.response?.data?.message ||
+          'Failed to accept bid'
+      );
     }
   };
 
@@ -111,12 +124,17 @@ const BidList: React.FC<BidListProps> = ({
       case BidStatus.ACCEPTED:
         return 'success';
       case BidStatus.REJECTED:
-        return 'error';
+        return 'warning';
       case BidStatus.WITHDRAWN:
         return 'default';
       default:
         return 'default';
     }
+  };
+
+  const getStatusLabel = (status: BidStatus) => {
+    if (status === BidStatus.REJECTED) return 'Not selected';
+    return status;
   };
 
   const getStatusIcon = (status: BidStatus) => {
@@ -258,7 +276,7 @@ const BidList: React.FC<BidListProps> = ({
                   </Typography>
                   <Chip
                     icon={getStatusIcon(bid.status)}
-                    label={bid.status}
+                    label={getStatusLabel(bid.status)}
                     color={getStatusColor(bid.status) as 'default' | 'primary' | 'success' | 'warning' | 'error'}
                     size="small"
                     sx={{ mt: 1 }}
@@ -286,15 +304,6 @@ const BidList: React.FC<BidListProps> = ({
                     size="small"
                   >
                     Accept Bid
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<Cancel />}
-                    size="small"
-                    disabled
-                  >
-                    Reject
                   </Button>
                 </Box>
               )}
