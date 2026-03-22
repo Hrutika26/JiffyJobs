@@ -318,6 +318,13 @@ export const getUserReviews = async (
             email: true,
           },
         },
+        reviewee: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+          },
+        },
         contract: {
           include: {
             task: {
@@ -343,6 +350,9 @@ export const getUserReviews = async (
   return {
     reviews: reviews.map((r: any) => ({
       reviewId: r.reviewId,
+      contractId: r.contractId,
+      reviewerId: r.reviewerId,
+      revieweeId: r.revieweeId,
       rating: r.rating,
       comment: r.comment,
       tags: r.tags,
@@ -350,6 +360,125 @@ export const getUserReviews = async (
       editedAt: r.editedAt,
       createdAt: r.createdAt,
       reviewer: r.reviewer,
+      reviewee: r.reviewee,
+      contract: r.contract,
+    })),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    },
+  };
+};
+
+/**
+ * Get reviews written by the current user (paginated)
+ */
+export const getMyReviews = async (
+  reviewerId: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<{
+  reviews: Array<{
+    reviewId: string;
+    contractId: string;
+    reviewerId: string;
+    revieweeId: string;
+    rating: number;
+    comment: string | null;
+    tags: ReviewTag[];
+    isEdited: boolean;
+    editedAt: Date | null;
+    createdAt: Date;
+    reviewee: {
+      userId: string;
+      name: string | null;
+      email: string;
+    };
+    contract: {
+      contractId: string;
+      task: {
+        taskId: string;
+        title: string;
+      };
+    };
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}> => {
+  const skip = (page - 1) * limit;
+
+  const [reviews, total] = await Promise.all([
+    prisma.review.findMany({
+      where: {
+        reviewerId,
+        isHidden: false,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+      include: {
+        reviewer: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+          },
+        },
+        reviewee: {
+          select: {
+            userId: true,
+            name: true,
+            email: true,
+          },
+        },
+        contract: {
+          include: {
+            task: {
+              select: {
+                taskId: true,
+                title: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.review.count({
+      where: {
+        reviewerId,
+        isHidden: false,
+      },
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    reviews: reviews.map((r: any) => ({
+      reviewId: r.reviewId,
+      contractId: r.contractId,
+      reviewerId: r.reviewerId,
+      revieweeId: r.revieweeId,
+      rating: r.rating,
+      comment: r.comment,
+      tags: r.tags,
+      isEdited: r.isEdited,
+      editedAt: r.editedAt,
+      createdAt: r.createdAt,
+      reviewer: r.reviewer,
+      reviewee: r.reviewee,
       contract: r.contract,
     })),
     pagination: {

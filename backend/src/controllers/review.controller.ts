@@ -141,6 +141,28 @@ export const getUserReviews = async (req: AuthRequest, res: Response): Promise<v
 };
 
 /**
+ * Get reviews written by the authenticated user (paginated)
+ */
+export const getMyReviews = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const result = await reviewService.getMyReviews(req.user.userId, page, limit);
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error getting my reviews:', error);
+    res.status(500).json({ error: error.message || 'Failed to get reviews' });
+  }
+};
+
+/**
  * Get review statistics for a user
  */
 export const getUserReviewStats = async (req: AuthRequest, res: Response): Promise<void> => {

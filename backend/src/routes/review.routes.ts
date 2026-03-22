@@ -9,6 +9,9 @@ const router = Router();
 // Create a review (authenticated)
 router.post('/', authenticate, reviewController.createReview);
 
+// Reviews written by current user (must be before /:reviewId)
+router.get('/me', authenticate, reviewController.getMyReviews);
+
 // Update a review (authenticated, owner only)
 router.put('/:reviewId', authenticate, reviewController.updateReview);
 
