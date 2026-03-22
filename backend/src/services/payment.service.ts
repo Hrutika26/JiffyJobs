@@ -4,10 +4,23 @@ import config from '../config/env';
 import { PaymentStatus, PaymentType } from '@prisma/client';
 import * as emailService from './email.service';
 
-const stripe = new Stripe(config.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-11-17.clover',
-  typescript: true,
-});
+/** Lazy init so the server can start without Stripe keys (local dev). Payment routes will error when used. */
+let stripeSingleton: Stripe | null = null;
+
+function getStripe(): Stripe {
+  if (!config.STRIPE_SECRET_KEY?.trim()) {
+    throw new Error(
+      'STRIPE_SECRET_KEY is not set. Add it to backend/.env for payments (see .env.example).'
+    );
+  }
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(config.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-11-17.clover',
+      typescript: true,
+    });
+  }
+  return stripeSingleton;
+}
 
 // Calculate platform fee and helper amount
 export const calculateAmounts = (agreedAmount: number): { platformFee: number; helperAmount: number } => {
@@ -21,7 +34,7 @@ export const createConnectAccount = async (userId: string, email: string, return
   try {
     // Create Express account for marketplace model
     // Platform collects payments, then transfers to connected accounts
-    const account = await stripe.accounts.create({
+    const account = await getStripe().accounts.create({
       type: 'express',
       country: 'US',
       email,
@@ -37,7 +50,7 @@ export const createConnectAccount = async (userId: string, email: string, return
     });
 
     // Create onboarding link
-    const accountLink = await stripe.accountLinks.create({
+    const accountLink = await getStripe().accountLinks.create({
       account: account.id,
       refresh_url: returnUrl,
       return_url: returnUrl,
@@ -64,7 +77,7 @@ export const createConnectAccount = async (userId: string, email: string, return
 
 // Get Connect account status
 export const getConnectAccountStatus = async (accountId: string): Promise<{ detailsSubmitted: boolean; chargesEnabled: boolean; payoutsEnabled: boolean }> => {
-  const account = await stripe.accounts.retrieve(accountId);
+  const account = await getStripe().accounts.retrieve(accountId);
   return {
     detailsSubmitted: account.details_submitted,
     chargesEnabled: account.charges_enabled,
@@ -80,7 +93,7 @@ export const chargePoster = async (
   description: string
 ): Promise<{ paymentIntentId: string; clientSecret: string }> => {
   // Create payment intent
-  const paymentIntent = await stripe.paymentIntents.create({
+  const paymentIntent = await getStripe().paymentIntents.create({
     amount: Math.round(amount * 100), // Convert to cents
     currency: 'usd',
     description,
@@ -119,7 +132,7 @@ export const chargePoster = async (
 
 // Confirm payment intent (after 3DS/SCA)
 export const confirmPayment = async (paymentIntentId: string): Promise<void> => {
-  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
   
   if (paymentIntent.status === 'succeeded') {
     const contract = await prisma.contract.findUnique({
@@ -137,7 +150,7 @@ export const confirmPayment = async (paymentIntentId: string): Promise<void> => 
       const chargeId = typeof paymentIntent.latest_charge === 'string' 
         ? paymentIntent.latest_charge 
         : paymentIntent.latest_charge.id;
-      const charge = await stripe.charges.retrieve(chargeId);
+      const charge = await getStripe().charges.retrieve(chargeId);
       receiptUrl = charge.receipt_url || null;
     }
 
@@ -195,7 +208,7 @@ export const releasePayout = async (contractId: string): Promise<void> => {
 
   // Create transfer to helper's Stripe Connect account (Marketplace model)
   // Platform account transfers funds to connected account, keeping the platform fee
-  const transfer = await stripe.transfers.create({
+  const transfer = await getStripe().transfers.create({
     amount: Math.round(helperAmount * 100), // Convert to cents
     currency: 'usd',
     destination: contract.helper.stripeAccountId,
@@ -278,7 +291,7 @@ export const refundPayment = async (
   }
 
   // Get payment intent to check current status
-  const paymentIntent = await stripe.paymentIntents.retrieve(contract.paymentIntentId);
+  const paymentIntent = await getStripe().paymentIntents.retrieve(contract.paymentIntentId);
   const chargeId = paymentIntent.latest_charge as string;
 
   if (!chargeId) {
@@ -290,7 +303,7 @@ export const refundPayment = async (
   const isPartialRefund = amount !== null && amount < Number(contract.agreedAmount);
 
   // Create refund
-  const refund = await stripe.refunds.create({
+  const refund = await getStripe().refunds.create({
     charge: chargeId,
     amount: Math.round(refundAmount * 100), // Convert to cents
     reason: reason ? 'requested_by_customer' : undefined,
@@ -385,7 +398,7 @@ const handlePaymentIntentSucceeded = async (paymentIntent: Stripe.PaymentIntent)
     const chargeId = typeof paymentIntent.latest_charge === 'string' 
       ? paymentIntent.latest_charge 
       : paymentIntent.latest_charge.id;
-    const charge = await stripe.charges.retrieve(chargeId);
+    const charge = await getStripe().charges.retrieve(chargeId);
     receiptUrl = charge.receipt_url || null;
   }
 
@@ -467,7 +480,7 @@ const handleRefundCreated = async (refund: Stripe.Refund): Promise<void> => {
     throw new Error('No charge found for refund');
   }
   
-  const charge = await stripe.charges.retrieve(chargeId);
+  const charge = await getStripe().charges.retrieve(chargeId);
   const isPartial = refund.amount < charge.amount;
   const newPaymentStatus = isPartial
     ? PaymentStatus.PARTIALLY_REFUNDED

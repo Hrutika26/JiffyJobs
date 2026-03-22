@@ -1,13 +1,39 @@
 import { Resend } from 'resend';
 import config from '../config/env';
 
-const resend = new Resend(config.RESEND_API_KEY);
+/** Resend throws if constructed with an empty key — only create when a key exists. */
+let resendClient: Resend | null = null;
+
+function getResend(): Resend | null {
+  if (!config.RESEND_API_KEY?.trim()) {
+    return null;
+  }
+  if (!resendClient) {
+    resendClient = new Resend(config.RESEND_API_KEY);
+  }
+  return resendClient;
+}
+
+function logSkippedEmail(kind: string, devHint?: string): void {
+  console.warn(
+    `[email] Skipped ${kind}: set RESEND_API_KEY in backend/.env to send real email.`
+  );
+  if (config.NODE_ENV === 'development' && devHint) {
+    console.info(devHint);
+  }
+}
 
 export const sendVerificationEmail = async (
   email: string,
   token: string
 ): Promise<void> => {
   const verificationUrl = `${config.FRONTEND_URL}/verify-email?token=${token}`;
+
+  const resend = getResend();
+  if (!resend) {
+    logSkippedEmail('verification email', `Verification URL (dev): ${verificationUrl}`);
+    return;
+  }
 
   try {
     await resend.emails.send({
@@ -45,6 +71,12 @@ export const sendPasswordResetEmail = async (
   token: string
 ): Promise<void> => {
   const resetUrl = `${config.FRONTEND_URL}/reset-password?token=${token}`;
+
+  const resend = getResend();
+  if (!resend) {
+    logSkippedEmail('password reset email', `Password reset URL (dev): ${resetUrl}`);
+    return;
+  }
 
   try {
     await resend.emails.send({
@@ -89,6 +121,12 @@ export const sendNotificationEmail = async (
 ): Promise<void> => {
   const notificationUrl = actionUrl || `${config.FRONTEND_URL}/notifications`;
 
+  const resend = getResend();
+  if (!resend) {
+    logSkippedEmail('notification email', `Notification URL (dev): ${notificationUrl}`);
+    return;
+  }
+
   try {
     await resend.emails.send({
       from: `${config.EMAIL_FROM_NAME} <${config.EMAIL_FROM}>`,
@@ -128,6 +166,12 @@ export const sendPaymentConfirmation = async (
 ): Promise<void> => {
   const contractUrl = `${config.FRONTEND_URL}/contracts/${data.contractId}`;
 
+  const resend = getResend();
+  if (!resend) {
+    logSkippedEmail('payment confirmation email');
+    return;
+  }
+
   try {
     await resend.emails.send({
       from: `${config.EMAIL_FROM_NAME} <${config.EMAIL_FROM}>`,
@@ -162,6 +206,12 @@ export const sendPayoutNotification = async (
 ): Promise<void> => {
   const contractUrl = `${config.FRONTEND_URL}/contracts/${data.contractId}`;
 
+  const resend = getResend();
+  if (!resend) {
+    logSkippedEmail('payout notification email');
+    return;
+  }
+
   try {
     await resend.emails.send({
       from: `${config.EMAIL_FROM_NAME} <${config.EMAIL_FROM}>`,
@@ -195,6 +245,12 @@ export const sendRefundNotification = async (
   data: { contractId: string; amount: number; taskTitle: string; isPartial: boolean }
 ): Promise<void> => {
   const contractUrl = `${config.FRONTEND_URL}/contracts/${data.contractId}`;
+
+  const resend = getResend();
+  if (!resend) {
+    logSkippedEmail('refund notification email');
+    return;
+  }
 
   try {
     await resend.emails.send({

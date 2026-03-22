@@ -23,12 +23,28 @@ interface EnvConfig {
   AUTO_RELEASE_HOURS: number;
 }
 
+/**
+ * Reads env vars. Empty-string defaults mean "optional in development".
+ * Note: `!''` is true in JS, so we must not use `!defaultValue` to detect "no default".
+ */
 const getEnvVar = (key: string, defaultValue: string): string => {
-  const value = process.env[key];
-  if (!value && !defaultValue) {
+  const raw = process.env[key];
+  const hasExplicitValue = raw !== undefined && raw !== '';
+
+  if (hasExplicitValue) {
+    return raw as string;
+  }
+
+  if (defaultValue !== '') {
+    return defaultValue;
+  }
+
+  // defaultValue === '' → treat as optional locally; require in production
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  if (nodeEnv === 'production') {
     throw new Error(`Missing required environment variable: ${key}`);
   }
-  return value || defaultValue;
+  return '';
 };
 
 const config: EnvConfig = {

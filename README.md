@@ -49,6 +49,8 @@ Before you begin, ensure you have the following installed:
 
 ## Installation
 
+**Quick local setup:** see **[LOCAL_SETUP.md](./LOCAL_SETUP.md)** for copy-paste steps (Docker Postgres, migrations, optional env vars).
+
 ### 1. Clone the Repository
 
 ```bash
@@ -67,14 +69,9 @@ npm install
 # Copy environment variables template
 cp .env.example .env
 
-# Edit .env file with your configuration
-# Required variables:
-# - DATABASE_URL
-# - JWT_SECRET
-# - FRONTEND_URL
-# - STRIPE_SECRET_KEY (for payments)
-# - RESEND_API_KEY (for emails)
-# - AWS credentials (for file uploads)
+# Edit .env — see backend/.env.example
+# Required for a minimal local run: DATABASE_URL (and defaults in .env.example)
+# Optional: RESEND_API_KEY (emails), STRIPE_* (payments), AWS_* (uploads) — see LOCAL_SETUP.md
 ```
 
 ### 3. Database Setup
@@ -87,12 +84,12 @@ docker-compose up -d
 # Or use your own PostgreSQL instance
 # Update DATABASE_URL in backend/.env
 
-# Run migrations
-cd backend
-npm run prisma:migrate
+# Apply migrations (from backend/)
+npx dotenv -e .env -- prisma migrate deploy
 
-# Generate Prisma Client
-npm run prisma:generate
+# Or: npm run prisma:generate && npm run prisma:migrate  (migrate dev — creates DB if needed)
+
+# If you see migration drift on an old DB: prisma migrate reset (dev only — wipes data)
 
 # (Optional) Seed skills
 npm run seed-skills
