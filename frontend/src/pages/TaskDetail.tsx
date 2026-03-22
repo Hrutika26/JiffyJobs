@@ -21,7 +21,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { taskAPI, bidAPI } from '@/services/api.service';
 import { chatAPI } from '@/services/api.service';
-import { Task, TaskStatus, Contract } from '@/types/task.types';
+import { Task, TaskStatus, Contract, Bid, BidStatus } from '@/types/task.types';
 import { ChatThread } from '@/types/chat.types';
 import { useAuth } from '@/contexts/AuthContext';
 import { TaskDetailCard, TaskDetails, TaskDescription, TaskLocation, TaskPoster } from '../components/tasks/TaskDetailCard';
@@ -36,6 +36,7 @@ import PaymentStatus from '../components/payments/PaymentStatus';
 import ReportForm from '../components/reports/ReportForm';
 import { ReportType } from '@/types/report.types';
 import FlagIcon from '@mui/icons-material/Flag';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 const statusColors: Record<TaskStatus, 'default' | 'primary' | 'success' | 'warning' | 'error'> = {
   [TaskStatus.OPEN]: 'primary',
@@ -62,16 +63,49 @@ const TaskDetail: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [contract, setContract] = useState<Contract | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
+  const [bidSectionKey, setBidSectionKey] = useState(0);
+  const [myBidOnTask, setMyBidOnTask] = useState<Bid | null>(null);
+  /** Shown to poster after accepting a bid (persists after task leaves OPEN). */
+  const [posterBidAcceptNotice, setPosterBidAcceptNotice] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTask();
   }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    setPosterBidAcceptNotice(null);
+  }, [taskId]);
+
+  useEffect(() => {
     if (task && user) {
       loadChatThread();
     }
   }, [task, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!taskId || !user || !task || task.posterId === user.userId) {
+      setMyBidOnTask(null);
+      return;
+    }
+    if (task.status === TaskStatus.CANCELLED) {
+      setMyBidOnTask(null);
+      return;
+    }
+    let cancelled = false;
+    bidAPI
+      .getTaskBids(taskId)
+      .then((res) => {
+        if (cancelled) return;
+        const mine = res.bids.find((b) => b.helperId === user.userId);
+        setMyBidOnTask(mine ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setMyBidOnTask(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, user, task, bidSectionKey]);
 
   const fetchTask = async () => {
     if (!taskId) return;
@@ -85,9 +119,7 @@ const TaskDetail: React.FC = () => {
         try {
           const contractResponse = await bidAPI.getTaskContract(taskId);
           setContract(contractResponse.contract);
-        } catch (contractErr) {
-          // Contract might not exist yet, which is fine
-          console.log('No contract found for this task');
+        } catch {
           setContract(null);
         }
       }
@@ -358,6 +390,15 @@ const TaskDetail: React.FC = () => {
           {/* Sidebar */}
           <Box sx={{ flex: { xs: '1', md: '1.5' }, minWidth: '400px' }}>
             <Stack spacing={3}>
+              {isOwner && posterBidAcceptNotice && (
+                <Alert
+                  severity="success"
+                  onClose={() => setPosterBidAcceptNotice(null)}
+                >
+                  {posterBidAcceptNotice}
+                </Alert>
+              )}
+
               {/* Poster Information */}
               <TaskPoster task={task} />
 
@@ -373,7 +414,14 @@ const TaskDetail: React.FC = () => {
                   </Box>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {task.status === 'OPEN' && 'This task is available for helpers to apply.'}
-                    {task.status === 'ASSIGNED' && !isOwner && 'You are assigned! Start working when ready.'}
+                    {task.status === 'ASSIGNED' &&
+                      !isOwner &&
+                      task.assignedHelperId === user?.userId &&
+                      'You are assigned! Start working when ready.'}
+                    {task.status === 'ASSIGNED' &&
+                      !isOwner &&
+                      task.assignedHelperId !== user?.userId &&
+                      'Another helper was selected for this task.'}
                     {task.status === 'ASSIGNED' && isOwner && 'A helper has been assigned. Waiting for them to start.'}
                     {task.status === 'IN_PROGRESS' && !isOwner && 'Currently working on this task.'}
                     {task.status === 'IN_PROGRESS' && isOwner && 'Helper is working on your task.'}
@@ -501,40 +549,106 @@ const TaskDetail: React.FC = () => {
                 </Card>
               )}
 
-              {/* Bidding Section - Only show when user and task are loaded */}
+              {/* Helper: bid outcome after poster chose someone (task no longer OPEN) */}
+              {user && task && !isOwner && task.status !== TaskStatus.OPEN && myBidOnTask && (
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Your bid
+                    </Typography>
+                    {myBidOnTask.status === BidStatus.REJECTED && (
+                      <Box sx={{ mt: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                          <Chip
+                            icon={<CancelIcon />}
+                            label="Not selected"
+                            color="warning"
+                            size="small"
+                          />
+                        </Box>
+                        <Alert severity="warning">
+                          The poster accepted another helper&apos;s bid for this task. Your bid was not selected.
+                        </Alert>
+                      </Box>
+                    )}
+                    {myBidOnTask.status === BidStatus.ACCEPTED && (
+                      <Alert severity="success" sx={{ mt: 1 }}>
+                        Your bid was accepted — you&apos;re assigned to this task.
+                      </Alert>
+                    )}
+                    {myBidOnTask.status === BidStatus.PENDING && (
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        This task is no longer open for bidding; your bid may still show as pending — refresh if
+                        needed.
+                      </Alert>
+                    )}
+                    {myBidOnTask.status === BidStatus.WITHDRAWN && (
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        You withdrew your bid on this task.
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Bidding Section — OPEN: place bid (helper) + bids list (owner) */}
               {user && task && task.status === TaskStatus.OPEN && (
                 <>
-                  {/* Helper View - Place Bid Form */}
                   {!isOwner && (
                     <Card>
                       <CardContent>
                         <Typography variant="h6" gutterBottom>
                           Place a Bid
                         </Typography>
-                        <BidForm 
-                          task={task} 
-                          onBidPlaced={(bid) => {
-                            console.log('Bid placed:', bid);
-                            // Optionally refresh the page or show success message
-                          }}
-                        />
+                        {myBidOnTask &&
+                        (myBidOnTask.status === BidStatus.PENDING ||
+                          myBidOnTask.status === BidStatus.ACCEPTED) ? (
+                          <Alert severity="info" sx={{ mt: 1 }}>
+                            You have already placed a bid on this task.
+                            {myBidOnTask.status === BidStatus.PENDING &&
+                              ' Waiting for the poster to respond.'}
+                          </Alert>
+                        ) : (
+                          <BidForm
+                            task={task}
+                            onBidPlaced={() => {
+                              fetchTask();
+                              setBidSectionKey((k) => k + 1);
+                            }}
+                          />
+                        )}
                       </CardContent>
                     </Card>
                   )}
 
-                  {/* Owner View - Bids List */}
                   {isOwner && (
-                    <BidList 
+                    <BidList
                       taskId={task.taskId}
-                      onBidAccepted={(bid) => {
-                        console.log('Bid accepted:', bid);
-                        // Optionally refresh the task data
+                      refreshTrigger={bidSectionKey}
+                      onBidAccepted={() => {
+                        setPosterBidAcceptNotice(
+                          'Bid accepted. Other bidders were not selected.'
+                        );
+                        setBidSectionKey((k) => k + 1);
                         fetchTask();
                       }}
                     />
                   )}
                 </>
               )}
+
+              {/* Owner: keep bids visible after assignment (read-only; accept only when OPEN above) */}
+              {user &&
+                task &&
+                isOwner &&
+                task.status !== TaskStatus.OPEN &&
+                [
+                  TaskStatus.ASSIGNED,
+                  TaskStatus.IN_PROGRESS,
+                  TaskStatus.AWAITING_CONFIRMATION,
+                ].includes(task.status) && (
+                  <BidList taskId={task.taskId} refreshTrigger={bidSectionKey} />
+                )}
 
 
             </Stack>
