@@ -63,13 +63,29 @@ interface UserLocation {
   address?: string;
 }
 
+function readStoredLocation(): UserLocation | null {
+  try {
+    const raw = localStorage.getItem('userLocation');
+    if (!raw) return null;
+    const loc = JSON.parse(raw) as { latitude?: number; longitude?: number; address?: string };
+    if (typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+      return { latitude: loc.latitude, longitude: loc.longitude, address: loc.address };
+    }
+  } catch {
+    /* ignore invalid storage */
+  }
+  return null;
+}
+
 const TaskDiscovery: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<'feed' | 'map'>('feed');
   const [showFilters, setShowFilters] = useState(false);
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(() =>
+    typeof window !== 'undefined' ? readStoredLocation() : null
+  );
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -101,17 +117,11 @@ const TaskDiscovery: React.FC = () => {
 
 
   useEffect(() => {
-    // Only search tasks when we have a location (either user location or default)
-    if (userLocation || locationError) {
-      searchTasks();
-    }
+    if (!userLocation) return;
+    searchTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters, pagination.page, userLocation, locationError]);
+  }, [filters, pagination.page, userLocation]);
 
-  // Debug effect to track showZipDialog state changes
-  useEffect(() => {
-    console.log('showZipDialog state changed to:', showZipDialog);
-  }, [showZipDialog]);
 
   const getCurrentLocation = async () => {
     if (!navigator.geolocation) {
@@ -138,7 +148,6 @@ const TaskDiscovery: React.FC = () => {
       // Save location to localStorage
       localStorage.setItem('userLocation', JSON.stringify({ latitude, longitude }));
     } catch (err: unknown) {
-      console.error('Error getting location:', err);
       const geoError = err as { code?: number; message?: string };
       
       if (geoError.code === 1) {
@@ -180,14 +189,15 @@ const TaskDiscovery: React.FC = () => {
   };
 
   const searchTasks = async () => {
+    if (!userLocation) {
+      return;
+    }
+
     setLoading(true);
     setError('');
 
-    // Use user location if available, otherwise use a default location (Boston)
-    const latitude = userLocation?.latitude || 42.3398;
-    const longitude = userLocation?.longitude || -71.0882;
-    
-    console.log('Searching tasks with location:', { latitude, longitude, userLocation, locationError });
+    const latitude = userLocation.latitude;
+    const longitude = userLocation.longitude;
 
     try {
       const response = await discoveryAPI.discoverTasks({
@@ -208,7 +218,6 @@ const TaskDiscovery: React.FC = () => {
         sortOrder: filters.sortOrder,
       });
 
-      console.log('Tasks received:', response.tasks);
       setTasks(response.tasks);
       setPagination(response.pagination);
     } catch (err: unknown) {
@@ -280,8 +289,7 @@ const TaskDiscovery: React.FC = () => {
       } else {
         setLocationError('Unable to find location for this ZIP code. Please try again.');
       }
-    } catch (error) {
-      console.error('ZIP geocoding error:', error);
+    } catch {
       setLocationError('Unable to get location from ZIP code. Please try again.');
     } finally {
       setLoading(false);
@@ -311,16 +319,27 @@ const TaskDiscovery: React.FC = () => {
     });
   };
 
-  if (!userLocation && !loading) {
+  if (!userLocation) {
+    if (loading) {
+      return (
+        <Container maxWidth="md" sx={{ py: 8 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <CircularProgress />
+            <Typography color="text.secondary">Getting your location…</Typography>
+          </Box>
+        </Container>
+      );
+    }
+
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <MyLocation sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
           <Typography variant="h5" gutterBottom>
-            Location Required
+            Please set your location
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            We need your location to show you nearby tasks. Please enable location access or search by ZIP code.
+            We need your location to show nearby tasks. Enable location access or search by ZIP code — we will not load tasks until a location is set.
           </Typography>
           <Button
             variant="contained"
@@ -334,10 +353,8 @@ const TaskDiscovery: React.FC = () => {
             variant="outlined"
             startIcon={<Search />}
             onClick={() => {
-              console.log('Search by ZIP button clicked');
               setShowZipDialog(true);
               setLocationError('Please enter your ZIP code to discover nearby tasks.');
-              console.log('showZipDialog set to true');
             }}
           >
             Search by ZIP
@@ -629,7 +646,7 @@ const TaskDiscovery: React.FC = () => {
                       />
                       {'skillMatch' in task && (task as TaskWithDistance).skillMatch?.isGoodMatch && (
                         <Chip
-                          label="Good Match"
+                          label="Suggested match"
                           size="small"
                           color="success"
                           variant="filled"
@@ -714,7 +731,7 @@ const TaskDiscovery: React.FC = () => {
             No tasks found
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Try adjusting your filters or expanding your search radius.
+            No tasks found in your area. Try increasing radius or changing filters.
           </Typography>
         </Paper>
       )}
