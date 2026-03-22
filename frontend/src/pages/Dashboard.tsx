@@ -96,47 +96,66 @@ const Dashboard: React.FC = () => {
       {user?.userId && (
         <Paper sx={{ p: 4, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Your Reviews
+            Reviews
           </Typography>
           {loadingStats ? (
             <Typography variant="body2" color="text.secondary">Loading...</Typography>
-          ) : reviewStats && reviewStats.totalCount > 0 ? (
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Rating value={reviewStats.averageRating} readOnly precision={0.1} />
-                <Typography variant="h6">
-                  {reviewStats.averageRating.toFixed(1)} / 5.0
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  ({reviewStats.totalCount} {reviewStats.totalCount === 1 ? 'review' : 'reviews'})
-                </Typography>
-              </Box>
-              {reviewStats.commonTags.length > 0 && (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-                    Common tags:
-                  </Typography>
-                  {reviewStats.commonTags.map((tag) => (
-                    <Chip
-                      key={tag}
-                      label={REVIEW_TAG_LABELS[tag]}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              )}
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Recent Reviews
-                </Typography>
-                <ReviewList userId={user.userId} showActions={false} />
-              </Box>
-            </Box>
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              No reviews yet. Complete tasks to receive reviews!
-            </Typography>
+            <Box sx={{ mt: 2 }}>
+              {reviewStats && reviewStats.totalCount > 0 ? (
+                <>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                    <Rating value={reviewStats.averageRating} readOnly precision={0.1} />
+                    <Typography variant="h6">
+                      {reviewStats.averageRating.toFixed(1)} / 5.0
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      ({reviewStats.totalCount} {reviewStats.totalCount === 1 ? 'review received' : 'reviews received'})
+                    </Typography>
+                  </Box>
+                  {reviewStats.commonTags.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                        Common tags:
+                      </Typography>
+                      {reviewStats.commonTags.map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={REVIEW_TAG_LABELS[tag]}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  No reviews received yet. Complete tasks so others can rate you!
+                </Typography>
+              )}
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                Reviews about you
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                You can report reviews about you. You can edit or delete reviews you&apos;ve written.
+              </Typography>
+              <ReviewList
+                mode="received"
+                userId={user.userId}
+                currentUserId={user.userId}
+                showActions
+              />
+
+              <Typography variant="subtitle2" gutterBottom sx={{ mt: 3 }}>
+                Reviews you&apos;ve written
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                Edit or delete reviews you&apos;ve written here. Notifications only start a new review.
+              </Typography>
+              <ReviewList mode="given" currentUserId={user.userId} />
+            </Box>
           )}
         </Paper>
       )}

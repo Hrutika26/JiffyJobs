@@ -1,6 +1,6 @@
 // src/components/reviews/ReviewForm.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -41,6 +41,19 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
   const [selectedTags, setSelectedTags] = useState<ReviewTag[]>(existingReview?.tags || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep form in sync when opening edit with different review or toggling create ↔ edit
+  useEffect(() => {
+    if (existingReview) {
+      setRating(existingReview.rating);
+      setComment(existingReview.comment || '');
+      setSelectedTags(existingReview.tags || []);
+    } else {
+      setRating(0);
+      setComment('');
+      setSelectedTags([]);
+    }
+  }, [existingReview?.reviewId]);
 
   const handleTagToggle = (tag: ReviewTag) => {
     if (selectedTags.includes(tag)) {
@@ -96,7 +109,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
         onSuccess();
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to submit review');
+      setError(err.response?.data?.error || (existingReview ? 'Failed to update review' : 'Failed to submit review'));
     } finally {
       setLoading(false);
     }

@@ -388,7 +388,25 @@ export const reviewAPI = {
     return response.data;
   },
 
-  // Get reviews for a user
+  // Reviews written by the authenticated user
+  getMyReviews: async (page: number = 1, limit: number = 20): Promise<{
+    reviews: any[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> => {
+    const response = await api.get('/reviews/me', {
+      params: { page, limit },
+    });
+    return response.data;
+  },
+
+  // Get reviews for a user (reviews received — about this user)
   getUserReviews: async (userId: string, page: number = 1, limit: number = 20): Promise<{
     reviews: any[];
     pagination: {
