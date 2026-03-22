@@ -11,11 +11,13 @@ import {
   Button,
   CircularProgress,
   Chip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import { Notification, NotificationType } from '@/types/notification.types';
-import { notificationAPI } from '@/services/api.service';
+import { notificationAPI, reviewAPI } from '@/services/api.service';
 import { useSocket } from '@/contexts/SocketContext';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -42,6 +44,15 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [reviewPromptOpen, setReviewPromptOpen] = useState(false);
   const [selectedReviewNotification, setSelectedReviewNotification] = useState<Notification | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'info' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
+
+  /** Message when user already reviewed — edits only from Dashboard → Reviews you've written */
+  const REVIEW_ALREADY_DASHBOARD_MSG =
+    'Review already submitted. You can edit it from your dashboard.';
 
   // Load notifications
   const loadNotifications = useCallback(async (pageNum: number = 1) => {
@@ -111,10 +122,39 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
       }
     }
 
-    // Handle review request notifications
+    // Review prompts: create-only modal — check eligibility before opening (edits are dashboard-only)
     if (notification.type === NotificationType.REVIEW_REQUESTED) {
-      setSelectedReviewNotification(notification);
-      setReviewPromptOpen(true);
+      const contractId = notification.metadata?.contractId as string | undefined;
+      if (!contractId) {
+        setSnackbar({
+          open: true,
+          message: 'Missing task information for this review.',
+          severity: 'error',
+        });
+        return;
+      }
+      try {
+        const { canReview, reason } = await reviewAPI.canUserReviewContract(contractId);
+        if (!canReview) {
+          const already =
+            reason?.toLowerCase().includes('already') || reason?.toLowerCase().includes('reviewed');
+          setSnackbar({
+            open: true,
+            message: already ? REVIEW_ALREADY_DASHBOARD_MSG : reason || 'You cannot leave a review for this task right now.',
+            severity: 'info',
+          });
+          return;
+        }
+        setSelectedReviewNotification(notification);
+        setReviewPromptOpen(true);
+      } catch (error: any) {
+        console.error('Failed to check review eligibility:', error);
+        setSnackbar({
+          open: true,
+          message: error.response?.data?.error || 'Could not open review. Try again from your dashboard.',
+          severity: 'error',
+        });
+      }
       return;
     }
 
@@ -250,6 +290,21 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({
         }}
         onReviewSubmitted={handleReviewSubmitted}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Drawer>
   );
 };
