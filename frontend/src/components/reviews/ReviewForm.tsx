@@ -1,4 +1,10 @@
 // src/components/reviews/ReviewForm.tsx
+//
+// Create or edit a review for a completed contract. Used by:
+// - ReviewPromptDialog (create only, from notification metadata)
+// - EditReviewDialog (edit with existingReview pre-filled)
+// Client-side checks mirror backend limits (rating 1–5, comment ≤300, ≤3 tags).
+// Server is authoritative for "already reviewed" / permissions.
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -16,7 +22,9 @@ import { ReviewTag, REVIEW_TAG_LABELS, CreateReviewData, UpdateReviewData, Revie
 import { reviewAPI } from '@/services/api.service';
 
 interface ReviewFormProps {
+  /** Completed job (contract) this review belongs to */
   contractId: string;
+  /** User being reviewed (the other party on the contract) */
   revieweeId: string;
   revieweeName?: string;
   taskTitle?: string;
@@ -42,7 +50,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep form in sync when opening edit with different review or toggling create ↔ edit
+  // Reset or hydrate fields when switching reviews (edit) or toggling create ↔ edit (reviewId changes)
   useEffect(() => {
     if (existingReview) {
       setRating(existingReview.rating);
@@ -86,7 +94,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 
     try {
       if (existingReview) {
-        // Update existing review
+        // PATCH-style update; server enforces owner + time window
         const updateData: UpdateReviewData = {
           rating,
           comment: comment || undefined,
@@ -94,7 +102,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
         };
         await reviewAPI.updateReview(existingReview.reviewId, updateData);
       } else {
-        // Create new review
+        // First review for this contract from this reviewer (server rejects duplicates)
         const createData: CreateReviewData = {
           contractId,
           revieweeId,

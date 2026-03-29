@@ -1,3 +1,6 @@
+// BidList.tsx — Task owner view: loads bids for a task, sortable, accept → optional Stripe dialog.
+// Refetch after accept uses the same loader path but skips full-page spinner (isFirstFetch) so the list stays visible.
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
@@ -132,6 +135,7 @@ const BidList: React.FC<BidListProps> = ({
     }
   };
 
+  // REJECTED = another bid won; softer label than raw enum for posters/helpers reading the list
   const getStatusLabel = (status: BidStatus) => {
     if (status === BidStatus.REJECTED) return 'Not selected';
     return status;

@@ -1,3 +1,6 @@
+// TaskMap.tsx — Leaflet map: task markers (clustered), user recenter, fullscreen. Consumes tasks with distance from discovery.
+// Default marker images are patched below (common react-leaflet bundler issue).
+
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import { Icon } from 'leaflet';

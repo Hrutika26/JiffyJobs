@@ -1,4 +1,6 @@
 // src/controllers/review.controller.ts
+// Express handlers for reviews: parse/validate body & query, require auth where needed, delegate to review.service.
+// Status codes: 401 unauthenticated, 400 business/validation errors from service, 201 create, 200 read/update/delete.
 
 import { Response } from 'express';
 import { AuthRequest } from '../types';

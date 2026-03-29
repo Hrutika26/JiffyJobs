@@ -1,3 +1,6 @@
+// MyBids.tsx — Logged-in helper: all bids they placed, with withdraw while PENDING.
+// Status subtitle under the chip explains REJECTED using task.status (assigned elsewhere vs generic not selected).
+
 import React, { useState, useEffect } from 'react';
 import {
   Box,

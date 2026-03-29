@@ -1,4 +1,5 @@
 // src/routes/review.routes.ts
+// Mount path is prefixed elsewhere (e.g. /reviews). Order matters: static paths like GET /me before /:reviewId.
 
 import { Router } from 'express';
 import * as reviewController from '../controllers/review.controller';

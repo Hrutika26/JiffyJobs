@@ -1,3 +1,6 @@
+// TaskDetailReadOnly.tsx — Public (or low-friction) task view by id from the URL; uses taskAPI.getTaskByIdPublic.
+// Lets someone open a shared link before signing in; discovery flows link here.
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {

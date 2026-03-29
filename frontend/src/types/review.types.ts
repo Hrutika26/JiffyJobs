@@ -1,3 +1,5 @@
+// Shared TypeScript shapes for review API responses and forms (tags enum aligns with Prisma ReviewTag).
+
 export enum ReviewTag {
   PUNCTUAL = 'PUNCTUAL',
   CAREFUL = 'CAREFUL',

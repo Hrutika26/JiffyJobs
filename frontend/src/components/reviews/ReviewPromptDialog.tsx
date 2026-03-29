@@ -1,7 +1,9 @@
 // src/components/reviews/ReviewPromptDialog.tsx
 //
-// Reviews can only be edited from the dashboard (ReviewList). This dialog is create-only;
-// notification clicks run a pre-check in NotificationCenter before this opens.
+// Create-only review entry from a notification. contractId / revieweeId / taskTitle
+// are read from notification.metadata (set when the backend notifies "please review").
+// Editing happens on Dashboard → ReviewList → EditReviewDialog, not here.
+// NotificationCenter should gate open with can-review where applicable.
 
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material';
@@ -30,6 +32,7 @@ const ReviewPromptDialog: React.FC<ReviewPromptDialogProps> = ({
     return null;
   }
 
+  // Typed loosely: payload shape is agreed with whoever creates review-related notifications
   const contractId = notification.metadata.contractId as string;
   const revieweeId = notification.metadata.revieweeId as string;
   const taskTitle = notification.metadata.taskTitle as string;

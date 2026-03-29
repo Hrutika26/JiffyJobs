@@ -1,3 +1,7 @@
+// TaskDiscovery.tsx — Browse tasks near the user (list + map). Core rule: no discovery API call until
+// userLocation exists (browser geolocation, ZIP geocode, or localStorage from a past visit).
+// Filters + view mode persist in localStorage; changing filters resets pagination to page 1.
+
 import React, { useState, useEffect } from 'react';
 import {
   Container,
@@ -63,6 +67,7 @@ interface UserLocation {
   address?: string;
 }
 
+/** Rehydrate coords from a previous session so returning users see tasks without re-prompting immediately */
 function readStoredLocation(): UserLocation | null {
   try {
     const raw = localStorage.getItem('userLocation');
@@ -116,6 +121,7 @@ const TaskDiscovery: React.FC = () => {
   }, []);
 
 
+  // When location or filters change, refetch; early return above prevents API calls with no coords
   useEffect(() => {
     if (!userLocation) return;
     searchTasks();
@@ -189,6 +195,7 @@ const TaskDiscovery: React.FC = () => {
   };
 
   const searchTasks = async () => {
+    // Guard: avoids useless or misleading API calls before we know where "nearby" is
     if (!userLocation) {
       return;
     }
@@ -231,7 +238,8 @@ const TaskDiscovery: React.FC = () => {
   const handleFilterChange = (newFilters: Partial<DiscoveryFilters>) => {
     const updatedFilters = { ...filters, ...newFilters };
     saveFilters(updatedFilters);
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page
+    // New filter set should start at page 1 so results match the first "page" of the new query
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const clearFilters = () => {

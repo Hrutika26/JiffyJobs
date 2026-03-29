@@ -1,4 +1,6 @@
 // src/services/review.service.ts
+// Domain rules for reviews: who may review which completed contract, one review per reviewer per contract,
+// edit/delete windows, aggregates for profile stats, and reporting. Throws Error with message → controller maps to HTTP.
 
 import prisma from '../config/database';
 import { ReviewTag, ReportStatus } from '@prisma/client';
@@ -83,7 +85,7 @@ export const createReview = async (params: CreateReviewParams) => {
     throw new Error('Invalid reviewee for this contract');
   }
 
-  // Check if review already exists
+  // Enforced in DB with composite unique (contractId + reviewerId); check here for a clear error message
   const existingReview = await prisma.review.findUnique({
     where: {
       contractId_reviewerId: {

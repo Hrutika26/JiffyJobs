@@ -1,4 +1,8 @@
 // src/components/reviews/ReviewList.tsx
+//
+// Paginated list: either reviews *about* a user (mode "received" + userId) or
+// reviews *written by* the logged-in user (mode "given" → GET /reviews/me).
+// Authors see Edit/Delete; others may see Report on received lists (showActions).
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -86,6 +90,7 @@ const ReviewList: React.FC<ReviewListProps> = ({
     setLoading(true);
     setError(null);
     try {
+      // "given" = current user's authored reviews; "received" = public profile-style list for userId
       const response =
         mode === 'given'
           ? await reviewAPI.getMyReviews(page, 10)

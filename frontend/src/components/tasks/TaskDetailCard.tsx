@@ -1,3 +1,5 @@
+// TaskDetailCard.tsx — Presentational cards for task browse/detail: reusable TaskDetailCard shell + TaskDetails/TaskDescription/TaskLocation/TaskPoster sections.
+
 import React from 'react';
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
 import { Task, TaskWithDistance } from '@/types/task.types';

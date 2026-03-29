@@ -1,4 +1,6 @@
-// Reusable edit flow: same ReviewForm as notification prompt, with pre-filled data.
+// EditReviewDialog.tsx — Reusable edit flow: same ReviewForm as the notification prompt,
+// but with existingReview set so submit calls updateReview instead of createReview.
+// key={review.reviewId} forces a clean remount when switching which row is edited.
 
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';

@@ -1,3 +1,6 @@
+// BidForm.tsx — Helper submits a bid for one task. Validates amount/note before calling bidAPI.placeBid.
+// Budget min/max come from the task object (poster's range); HTML min/max hints match validation.
+
 import React, { useState } from 'react';
 import {
   Box,
@@ -42,6 +45,7 @@ const BidForm: React.FC<BidFormProps> = ({ task, onBidPlaced, onCancel }) => {
     if (error) setError(null);
   };
 
+  // Immediate feedback; server still validates (race conditions, rule changes)
   const validateForm = (): string | null => {
     if (formData.amount <= 0) {
       return 'Amount must be greater than 0';

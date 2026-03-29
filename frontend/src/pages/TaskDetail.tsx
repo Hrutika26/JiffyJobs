@@ -1,3 +1,6 @@
+// TaskDetail.tsx — Logged-in task page (poster vs helper): task info, chat entry, bids, completion, payments.
+// Bidding flow: OPEN → BidForm (helper) / BidList + accept (owner); after assignment, helper sees outcome banner; owner may still see BidList read-only.
+
 import React, { useEffect, useState } from 'react';
 import {
   Container,
@@ -591,7 +594,7 @@ const TaskDetail: React.FC = () => {
                 </Card>
               )}
 
-              {/* Bidding Section — OPEN: place bid (helper) + bids list (owner) */}
+              {/* Bidding while task is OPEN: bidSectionKey increments after place/accept so BidList refetches without losing context */}
               {user && task && task.status === TaskStatus.OPEN && (
                 <>
                   {!isOwner && (
